@@ -1,0 +1,5 @@
+langchain
+langchain-experimental
+langchain-google-genai
+langchain-community
+google-genai
