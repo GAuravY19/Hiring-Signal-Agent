@@ -1,6 +1,9 @@
 import os
 import json
 import re
+import smtplib
+
+from email.mime.text import MIMEText
 
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -43,6 +46,19 @@ def clean_llm_output(text):
     text = re.sub(r"```json|```", "", text).strip()
     return json.loads(text)
 
+def send_email(subject, body):
+    from_email = os.getenv('From_Email')
+    to_email = os.getenv('to_email')
+
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = from_email
+    msg['To'] = to_email
+
+    with smtplib.SMTP("smtp.gmail.com", 587) as server:
+        server.starttls()
+        server.login(from_email, os.getenv('Google_App_Password'))
+        server.send_message(msg)
 
 
 
@@ -116,11 +132,14 @@ def extract(state: AgentState, config):
     return {'job_details': job}
 
 
-def save(state: AgentState):
+def save_notify(state: AgentState):
     data = state.job_details
 
     with open("leads.txt", "a") as f:
         f.write(str(data) + '\n')
+
+    send_email(subject="Hiring Alert",
+               body=f'{data.role} role at {data.company}')
 
     return state
 
@@ -139,7 +158,7 @@ builder = StateGraph(AgentState)
 # Add node
 builder.add_node("classify", classifypost)
 builder.add_node("extract", extract)
-builder.add_node("save", save)
+builder.add_node("save", save_notify)
 
 builder.set_entry_point("classify")
 
